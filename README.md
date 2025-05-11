@@ -69,7 +69,7 @@ Uplifted 广泛适用于各种信息安全场景，包括但不限于：
 
 ```bash
 # 安装依赖
-git clone https://github.com/uplifted-ai/uplifted.git
+git clone https://github.com/Cyber-Security-Mcp-FrameWork/uplifted.git
 cd uplifted
 pip install .
 
