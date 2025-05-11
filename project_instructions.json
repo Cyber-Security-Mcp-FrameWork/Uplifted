@@ -1,0 +1,1 @@
+"gui": {"type": "directory", "children": {"templates": {"type": "directory", "children": {"index.html": {"type": "file", "path": "/home/j0hn/code/Uplifted/client/gui/templates/index.html"}}}, "path": "/home/j0hn/code/Uplifted/client/gui/templates"}, "path": "/home/j0hn/code/Uplifted/client/gui"},
