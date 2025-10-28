@@ -35,10 +35,23 @@
 
 把最强的 LLM（GPT, Claude, Gemini等）和 MCP 工具生态系统结合，让 AI 成为你的渗透测试员、漏洞研究员、红队成员。通过 MCP 协议接入任意安全工具，自动化执行从侦察到利用的完整攻击链，让你专注于高价值目标和复杂漏洞。
 
+**重要说明**：Uplifted 是基于 REST API 的服务器架构，通过 HTTP API 使用，不提供 SDK。
+
 ```python
 # 从目标到 Exploit，全自动
-agent = Uplifted.create_agent(model="claude-3.5-sonnet")
-agent.execute("Find 0day in target.com and generate exploit")
+import requests
+
+# 创建 Agent
+response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+    "model": "claude-3.5-sonnet",
+    "tools": ["subdomain_enum", "port_scanner", "web_scanner", "exploit_db"]
+})
+agent_id = response.json()['agent_id']
+
+# 执行攻击链
+response = requests.post(f'http://localhost:7541/api/v1/agents/{agent_id}/run', json={
+    "message": "在 target.com 上找到 0day 漏洞并生成 exploit"
+})
 # Agent 自动调用你配置的 MCP 工具，完成：
 # 信息收集 → 漏洞扫描 → 漏洞验证 → Exploit 生成 → 权限提升
 ```
@@ -50,6 +63,32 @@ agent.execute("Find 0day in target.com and generate exploit")
 - **🔴 红队成员** - 模拟真实攻击，评估企业防御能力
 - **🔬 安全研究人员** - 漏洞研究和 POC 开发的智能助手
 - **🛡️ 安全审计师** - 全面的安全评估和合规测试
+
+### 🏗️ 架构概述
+
+**Uplifted 是一个 REST API 服务器，不是 SDK 或命令行工具。**
+
+```
+你的代码 (Python/Node.js/任何语言)
+        ↓ HTTP API 调用
+    Uplifted Server
+        ↓
+    AI Agent 编排器
+        ↓
+    MCP 工具生态系统
+```
+
+**两种工具接入方式：**
+
+1. **插件系统**（推荐用于复杂工具集）
+   - 插件 = 容器，可包含多个工具
+   - 示例：`security_scanner` 插件 → 包含 `port_scan`、`vuln_scan`、`exploit` 等工具
+   - 通过 MCPPluginBridge 自动注册
+
+2. **独立 MCP 工具**（推荐用于快速集成）
+   - 直接连接外部 MCP 服务器
+   - 示例：直接使用 `@modelcontextprotocol/server-nmap`
+   - 无需创建插件包装
 
 ### 🔥 为什么选择 UPLIFTED?
 
@@ -281,26 +320,28 @@ $ uplifted --mode="autonomous" --target="everything"
 ### 🚀 并行处理架构
 
 ```
-        ┌─────────┐
-        │  YOU    │
-        └────┬────┘
-             │
-    ┌────────┴────────┐
-    │  UPLIFTED CORE  │
-    └────┬───────┬────┘
-         │       │
-    ┌────┴──┐ ┌─┴────┐
-    │Agent 1│ │Agent 2│  ← 并行工作
-    └───┬───┘ └───┬──┘
-        │         │
-    ┌───┴──┐  ┌──┴───┐
-    │Tool A│  │Tool B│
-    └──────┘  └──────┘
+        ┌─────────────────┐
+        │  你的应用代码     │
+        │  (HTTP Client)   │
+        └────────┬─────────┘
+                 │ REST API
+    ┌────────────┴────────────┐
+    │  UPLIFTED API Server    │
+    └────┬─────────────┬──────┘
+         │             │
+    ┌────┴──┐      ┌──┴────┐
+    │Agent 1│      │Agent 2│  ← 并行工作
+    └───┬───┘      └───┬───┘
+        │ MCP          │ MCP
+    ┌───┴──┐       ┌──┴───┐
+    │Tool A│       │Tool B│
+    └──────┘       └──────┘
 ```
 
-- **多 Agent 协同** - 同时运行多个 Agent，分工合作
+- **多 Agent 协同** - 通过 API 同时创建和运行多个 Agent
 - **任务队列** - 智能任务调度，最大化资源利用
 - **异步执行** - 不阻塞，所有操作都是异步的
+- **API 驱动** - 任何支持 HTTP 的语言都可以使用
 
 
 ---
@@ -406,6 +447,19 @@ $ uplifted research \
 
 ## 📡 快速部署
 
+### 🎯 使用方式说明
+
+**Uplifted 是 REST API 服务器，使用方式：**
+
+1. **启动 Uplifted 服务器**（本地或远程）
+2. **通过 HTTP API 调用**（任何语言）
+3. **无需安装 SDK 或客户端库**
+
+```bash
+# 你只需要一个能发 HTTP 请求的工具
+curl http://localhost:7541/api/v1/status
+```
+
 ### ⚡ One-Liner (最快)
 
 **Linux/macOS:**
@@ -417,6 +471,8 @@ curl -fsSL https://raw.githubusercontent.com/Cyber-Security-Mcp-FrameWork/uplift
 ```powershell
 irm https://raw.githubusercontent.com/Cyber-Security-Mcp-FrameWork/uplifted/main/install.ps1 | iex
 ```
+
+安装后，Uplifted 将作为后台服务运行，监听端口 7541 和 8086。
 
 ### 🐳 Docker (推荐)
 
@@ -436,10 +492,21 @@ docker-compose up -d
 curl http://localhost:7541/status
 ```
 
-**访问地址:**
-- 🌐 主 API: `http://localhost:7541`
-- 📚 API 文档: `http://localhost:7541/docs`
-- 🔧 工具服务器: `http://localhost:8086`
+**服务启动后访问：**
+- 🌐 **Main API**: `http://localhost:7541` - Agent 管理、任务执行
+- 📚 **API 文档**: `http://localhost:7541/docs` - Swagger UI
+- 🔧 **Tools Server**: `http://localhost:8086` - 工具管理、MCP 集成
+
+**验证安装：**
+```bash
+# 检查服务状态
+curl http://localhost:7541/status
+
+# 查看 API 文档
+open http://localhost:7541/docs  # macOS
+start http://localhost:7541/docs  # Windows
+xdg-open http://localhost:7541/docs  # Linux
+```
 
 ### 🔧 手动安装（黑客专用）
 
@@ -476,11 +543,40 @@ curl http://localhost:7541/status
 
 ## 💻 代码示例
 
-### 示例 1: 创建渗透测试 Agent
+**重要说明**：所有示例都是通过 **HTTP API** 调用，Uplifted 不提供 Python SDK。你可以使用任何支持 HTTP 的语言和工具。
+
+### 示例 1: 创建并配置渗透测试 Agent
+
+**第一步：添加你需要的 MCP 工具**
 
 ```python
 import requests
 
+# 方式 1: 添加外部 MCP 工具（推荐快速开始）
+requests.post('http://localhost:8086/tools/add_mcp_tool', json={
+    "name": "nmap",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-nmap"],
+    "env": {}
+})
+
+requests.post('http://localhost:8086/tools/add_mcp_tool', json={
+    "name": "nikto",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-nikto"],
+    "env": {}
+})
+
+# 方式 2: 加载插件（适合复杂工具集）
+# 插件会自动注册其包含的所有工具
+requests.post('http://localhost:7541/api/v1/plugins/load', json={
+    "plugin_dir": "/path/to/your/plugin"
+})
+```
+
+**第二步：创建 Agent**
+
+```python
 # 创建一个专业的渗透测试 Agent
 response = requests.post('http://localhost:7541/api/v1/agents/create', json={
     "model": "claude-3-5-sonnet",  # 最强大脑
@@ -488,14 +584,9 @@ response = requests.post('http://localhost:7541/api/v1/agents/create', json={
     你是一位拥有 10 年经验的精英渗透测试人员。
     你专注于 Web 应用安全、网络渗透和权限提升。
     始终识别最关键的漏洞并提供利用路径。
-    """,
-    "tools": [
-        "subdomain_enum",
-        "port_scanner",
-        "web_vulnerability_scanner",
-        "exploit_database",
-        "payload_generator"
-    ]
+
+    可用工具：nmap (端口扫描)、nikto (Web 扫描)
+    """
 })
 
 agent_id = response.json()['agent_id']
@@ -545,66 +636,212 @@ print(f"[+] 成功利用的漏洞: {result['exploits_successful']}")
 ### 示例 3: 自动化 Bug Bounty 扫描
 
 ```python
-import asyncio
+import requests
+import time
 
 # 批量扫描多个 Bug Bounty 目标
-async def scan_targets():
-    targets = [
-        "target1.com",
-        "target2.com",
-        "target3.com"
-    ]
+targets = [
+    "target1.com",
+    "target2.com",
+    "target3.com"
+]
 
-    for target in targets:
-        response = requests.post('http://localhost:7541/api/v1/agents/create', json={
-            "model": "gpt-4",
-            "system_prompt": f"扫描 {target} 的漏洞。重点关注 XSS、SQLi、SSRF。",
-            "tools": ["subdomain_enum", "web_scanner", "fuzzer"]
-        })
+for target in targets:
+    # 为每个目标创建专门的 Agent
+    response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+        "model": "gpt-4",
+        "system_prompt": f"""
+        你是 Bug Bounty Hunter。
+        目标: {target}
+        重点: XSS、SQLi、SSRF、IDOR、权限提升
+        使用所有可用工具进行全面扫描。
+        """
+    })
 
-        agent_id = response.json()['agent_id']
+    agent_id = response.json()['agent_id']
+    print(f"[+] 为 {target} 创建 Agent: {agent_id}")
 
-        # 启动扫描
-        scan_result = requests.post(
-            f'http://localhost:7541/api/v1/agents/{agent_id}/run',
-            json={"message": f"全面扫描 {target}"}
-        )
+    # 启动扫描
+    scan_result = requests.post(
+        f'http://localhost:7541/api/v1/agents/{agent_id}/run',
+        json={"message": f"执行完整的漏洞扫描"}
+    )
 
-        print(f"[+] {target}: 发现 {scan_result.json()['vulnerabilities_found']} 个漏洞")
+    result = scan_result.json()
+    print(f"[+] {target}: 扫描完成")
+    print(f"    工具使用: {result.get('tools_used', [])}")
+    print(f"    发现问题: {result.get('findings_count', 0)} 个")
 
-asyncio.run(scan_targets())
+    time.sleep(2)  # 避免过快请求
 ```
 
-### 示例 4: 自定义 Exploit 工具集成
+### 示例 4: 集成自定义工具
+
+**方式 1：创建简单的 MCP 工具服务器**
 
 ```python
-from server.uplifted.extensions import PluginManager, MCPPluginBridge
+# my_scanner_server.py
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
 
-# 把你自己的脚本变成 MCP 工具
-class MyCustomScanner:
-    def scan(self, target):
-        # 你的自定义扫描逻辑
-        return {"vulns": [...]}
+app = Server("my-scanner")
 
-# 注册到 Uplifted
-manager = PluginManager()
-bridge = MCPPluginBridge()
+@app.tool()
+async def scan_target(target: str, scan_type: str = "quick") -> dict:
+    """
+    自定义扫描工具
 
-manager.register_plugin("my_scanner", MyCustomScanner())
-bridge.register_plugin(manager.get_plugin("my_scanner"))
+    Args:
+        target: 目标地址
+        scan_type: 扫描类型 (quick/full)
+    """
+    # 你的扫描逻辑
+    results = {
+        "target": target,
+        "vulnerabilities": [
+            {"type": "XSS", "severity": "high", "location": "/search?q="}
+        ]
+    }
+    return results
 
-# 现在 AI Agent 可以使用你的工具了
-agent.run("使用 my_scanner 扫描 192.168.1.1")
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(stdio_server(app))
+```
+
+**方式 2：注册到 Uplifted**
+
+```python
+import requests
+
+# 添加你的自定义工具
+response = requests.post('http://localhost:8086/tools/add_mcp_tool', json={
+    "name": "my_scanner",
+    "command": "python",
+    "args": ["my_scanner_server.py"],
+    "env": {}
+})
+
+print(f"工具已注册: {response.json()}")
+
+# 现在可以在 Agent 中使用了
+response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+    "model": "claude-3.5-sonnet",
+    "system_prompt": "使用 my_scanner 工具扫描目标"
+})
+```
+
+**方式 3：创建完整插件（适合复杂工具集）**
+
+参考文档：[`docs/PLUGIN_DEVELOPMENT_TUTORIAL.md`](./docs/PLUGIN_DEVELOPMENT_TUTORIAL.md)
+```
+
+### 示例 5: 使用其他语言调用（Bash/Node.js/Go）
+
+**因为 Uplifted 是 REST API，你可以用任何语言调用！**
+
+**Bash + curl:**
+```bash
+# 创建 Agent
+agent_response=$(curl -s -X POST http://localhost:7541/api/v1/agents/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-3.5-sonnet",
+    "system_prompt": "你是渗透测试专家"
+  }')
+
+agent_id=$(echo $agent_response | jq -r '.agent_id')
+echo "[+] Agent 创建成功: $agent_id"
+
+# 执行任务
+curl -X POST "http://localhost:7541/api/v1/agents/$agent_id/run" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "扫描 example.com"}'
+```
+
+**Node.js:**
+```javascript
+const axios = require('axios');
+
+async function createAndRunAgent() {
+    // 创建 Agent
+    const createResponse = await axios.post('http://localhost:7541/api/v1/agents/create', {
+        model: 'claude-3.5-sonnet',
+        system_prompt: '你是渗透测试专家'
+    });
+
+    const agentId = createResponse.data.agent_id;
+    console.log(`[+] Agent 创建成功: ${agentId}`);
+
+    // 执行任务
+    const runResponse = await axios.post(
+        `http://localhost:7541/api/v1/agents/${agentId}/run`,
+        { message: '扫描 example.com' }
+    );
+
+    console.log('[+] 结果:', runResponse.data);
+}
+
+createAndRunAgent();
+```
+
+**Go:**
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+)
+
+type CreateAgentRequest struct {
+    Model        string `json:"model"`
+    SystemPrompt string `json:"system_prompt"`
+}
+
+func main() {
+    // 创建 Agent
+    reqBody, _ := json.Marshal(CreateAgentRequest{
+        Model:        "claude-3.5-sonnet",
+        SystemPrompt: "你是渗透测试专家",
+    })
+
+    resp, _ := http.Post(
+        "http://localhost:7541/api/v1/agents/create",
+        "application/json",
+        bytes.NewBuffer(reqBody),
+    )
+    defer resp.Body.Close()
+
+    var result map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&result)
+
+    agentId := result["agent_id"].(string)
+    fmt.Printf("[+] Agent 创建成功: %s\n", agentId)
+}
 ```
 
 ---
 
-## 🏗️ 架构
+## 🏗️ 架构详解
+
+### 系统架构
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                     🌐 REST API Layer                         │
+│                你的应用 (任何语言)                              │
+│         Python | Node.js | Go | Bash | Curl                  │
+└──────────────────────────┬────────────────────────────────────┘
+                           │ HTTP/REST API
+                           ↓
+┌───────────────────────────────────────────────────────────────┐
+│                     🌐 Uplifted REST API                      │
 │              (FastAPI + WebSocket + Swagger)                  │
+│                                                               │
+│  • Main Server:  http://localhost:7541 (Agent 管理)          │
+│  • Tools Server: http://localhost:8086 (工具管理)            │
 └──────────────────────────┬────────────────────────────────────┘
                            │
 ┌──────────────────────────▼────────────────────────────────────┐
@@ -618,9 +855,9 @@ agent.run("使用 my_scanner 扫描 192.168.1.1")
 │   🤖 Agent Orchestrator │   │   🔧 Tool Integrator   │
 │                         │   │                        │
 │  • Level One (Calls)    │◄──┤  • MCP Ecosystem       │
-│  • Level Two (Agents)   │   │  • MCP Protocol        │
-│  • Parallel Processing  │   │  • Plugin System       │
-│  • Memory Management    │   │  • Dynamic Registry    │
+│  • Level Two (Agents)   │   │  • Plugin System       │
+│  • Parallel Processing  │   │  • Dynamic Registry    │
+│  • Memory Management    │   │  • Tool Discovery      │
 └─────────────┬───────────┘   └─────────┬──────────────┘
               │                         │
 ┌─────────────▼─────────────────────────▼──────────────┐
@@ -629,9 +866,45 @@ agent.run("使用 my_scanner 扫描 192.168.1.1")
 └───────────────────────────────────────────────────────┘
 ```
 
+### 工具系统架构
+
+```
+工具接入方式 1: 插件系统
+┌─────────────────────────────────┐
+│  Plugin: security_scanner       │
+│  ├── Tool: port_scan            │
+│  ├── Tool: vuln_scan            │
+│  └── Tool: exploit_search       │
+└─────────┬───────────────────────┘
+          │ MCPPluginBridge
+          │ 自动注册
+          ↓
+     MCP Tool Registry
+
+工具接入方式 2: 独立 MCP 工具
+┌─────────────────────────────────┐
+│  External MCP Server            │
+│  (如 @mcp/server-nmap)          │
+└─────────┬───────────────────────┘
+          │ 直接连接
+          │ POST /tools/add_mcp_tool
+          ↓
+     MCP Tool Registry
+```
+
+**关键概念：**
+
+| 概念 | 说明 | 示例 |
+|------|------|------|
+| **插件 (Plugin)** | 完整的扩展包，包含多个工具 | `security_scanner` 插件 |
+| **工具 (Tool)** | 具体的功能实现 | `port_scan` 工具 |
+| **MCP Server** | 提供工具的外部服务 | `@mcp/server-nmap` |
+| **工具命名** | 格式：`{source}.{tool_name}` | `nmap.port_scan` |
+
 **数据流:**
 ```
-用户请求 → API → Agent 编排器 → 工具选择 → LLM 决策 → 工具执行 → 结果聚合 → 响应
+HTTP 请求 → API 验证 → Agent 编排器 → 工具选择 → LLM 决策 →
+MCP 工具调用 → 结果聚合 → HTTP 响应
 ```
 
 完整架构文档: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
@@ -644,13 +917,22 @@ agent.run("使用 my_scanner 扫描 192.168.1.1")
 
 ```bash
 docs/
-├── ARCHITECTURE.md              # 系统架构 [30 pages]
-├── DEPLOYMENT.md                # 部署指南 [40 pages]
-├── OPERATIONS_GUIDE.md          # 运维手册 [35 pages]
-├── TESTING_GUIDE.md             # 测试指南 [45 pages]
-├── PLUGIN_DEVELOPMENT_TUTORIAL.md  # 插件开发 [40 pages]
-└── CONFIG_MANAGEMENT.md         # 配置管理 [25 pages]
+├── ARCHITECTURE.md                  # 🏗️  系统架构设计
+├── DEPLOYMENT.md                    # 🚀 部署和安装指南
+├── OPERATIONS_GUIDE.md              # 🔧 运维和监控手册
+├── TESTING_GUIDE.md                 # 🧪 测试指南
+├── PLUGIN_DEVELOPMENT_TUTORIAL.md   # 🔌 插件开发教程
+└── CONFIG_MANAGEMENT.md             # ⚙️  配置管理
+
+examples/
+├── API_USAGE.md                     # 📡 API 使用示例（必读！）
+└── server_with_plugins.py           # 🔧 插件集成示例
 ```
+
+**推荐阅读顺序：**
+1. [`examples/API_USAGE.md`](./examples/API_USAGE.md) - **了解如何通过 API 使用**
+2. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) - 理解架构设计
+3. [`docs/PLUGIN_DEVELOPMENT_TUTORIAL.md`](./docs/PLUGIN_DEVELOPMENT_TUTORIAL.md) - 开发自定义工具
 
 
 ### 🌐 API 参考
