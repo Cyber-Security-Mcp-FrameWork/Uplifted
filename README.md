@@ -279,11 +279,21 @@ config.load("config.enc")       # Encrypted
 
 ### 🤖 AI 驱动一切
 
-```bash
-$ uplifted --mode="autonomous" --target="everything"
-[*] 加载 AI 模型中... [GPT-4, Claude, Gemini, Ollama]
-[*] 初始化 MCP 工具生态系统...
-[*] Agent 集群就绪，等待你的指令。
+```python
+import requests
+
+# 创建自主决策的 Agent
+response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+    "model": "claude-3.5-sonnet",  # 或 gpt-4, gemini-pro, ollama
+    "system_prompt": "你是自主渗透测试 Agent，自行决策工具使用",
+    "mode": "autonomous"
+})
+
+agent_id = response.json()['agent_id']
+print(f"[*] Agent 已创建: {agent_id}")
+print("[*] AI 模型加载完成")
+print("[*] MCP 工具生态系统已初始化")
+print("[*] Agent 就绪，等待你的指令")
 ```
 
 - **多模型并发** - 同时运行多个 AI 模型，互相验证结果
@@ -354,33 +364,53 @@ $ uplifted --mode="autonomous" --target="everything"
 <tr><td>
 
 ### 🔍 渗透测试
-```bash
+```python
 # 全自动渗透测试
-$ uplifted pentest target.com \
-  --depth=full \
-  --report=markdown
+import requests
 
-[*] Reconnaissance...
-[*] Vulnerability scanning...
-[*] Exploitation attempts...
-[*] Post-exploitation...
-[*] Report generated: pwned.md
+response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+    "model": "claude-3.5-sonnet",
+    "tools": ["nmap", "nikto", "sqlmap", "metasploit"]
+})
+agent_id = response.json()['agent_id']
+
+# 执行全面渗透测试
+requests.post(f'http://localhost:7541/api/v1/agents/{agent_id}/run', json={
+    "message": "对 target.com 进行完整渗透测试，深度扫描，生成 markdown 报告",
+    "context": {"depth": "full", "report_format": "markdown"}
+})
+
+# [*] Reconnaissance...
+# [*] Vulnerability scanning...
+# [*] Exploitation attempts...
+# [*] Post-exploitation...
+# [*] Report generated: pwned.md
 ```
 **用途**: 企业安全评估、合规测试、定期渗透测试
 
 </td><td>
 
 ### 🔴 红队行动
-```bash
+```python
 # 红队演练模拟真实攻击
-$ uplifted redteam \
-  --target=corp-internal \
-  --scenario=apt-simulation
+import requests
 
-[*] Initial access: Phishing
-[*] Privilege escalation: ✓
-[*] Lateral movement: 5 hosts
-[*] Data exfiltration: Simulated
+response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+    "model": "gpt-4",
+    "tools": ["phishing_toolkit", "mimikatz", "bloodhound", "empire"]
+})
+agent_id = response.json()['agent_id']
+
+# 执行 APT 攻击模拟
+requests.post(f'http://localhost:7541/api/v1/agents/{agent_id}/run', json={
+    "message": "模拟 APT 攻击：corp-internal 网络",
+    "context": {"scenario": "apt-simulation", "stealth": True}
+})
+
+# [*] Initial access: Phishing
+# [*] Privilege escalation: ✓
+# [*] Lateral movement: 5 hosts
+# [*] Data exfiltration: Simulated
 ```
 **用途**: 红蓝对抗、攻击模拟、防御能力评估
 
@@ -388,33 +418,53 @@ $ uplifted redteam \
 <tr><td>
 
 ### 🐛 漏洞赏金挖掘
-```bash
+```python
 # 自动化漏洞挖掘
-$ uplifted bugbounty \
-  --target=wildcard.com \
-  --automation=aggressive
+import requests
 
-[*] Subdomain enum: 847 found
-[*] Scanning vulnerabilities...
-[*] XSS found in login.wildcard.com
-[*] SQL injection in api.wildcard.com
-[*] Generating POC...
+response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+    "model": "claude-3.5-sonnet",
+    "tools": ["subfinder", "httpx", "nuclei", "xsstrike", "sqlmap"]
+})
+agent_id = response.json()['agent_id']
+
+# 执行自动化漏洞挖掘
+requests.post(f'http://localhost:7541/api/v1/agents/{agent_id}/run', json={
+    "message": "wildcard.com 的完整漏洞挖掘，主动模式",
+    "context": {"automation": "aggressive"}
+})
+
+# [*] Subdomain enum: 847 found
+# [*] Scanning vulnerabilities...
+# [*] XSS found in login.wildcard.com
+# [*] SQL injection in api.wildcard.com
+# [*] Generating POC...
 ```
 **用途**: HackerOne/Bugcrowd 赏金、批量目标扫描
 
 </td><td>
 
 ### 🔬 漏洞研究
-```bash
+```python
 # 漏洞研究和 Exploit 开发
-$ uplifted research \
-  --target=app.apk \
-  --mode=fuzzing
+import requests
 
-[*] Reverse engineering...
-[*] Fuzzing 1000 test cases...
-[*] Crash detected: heap overflow
-[*] Generating exploit template...
+response = requests.post('http://localhost:7541/api/v1/agents/create', json={
+    "model": "gpt-4",
+    "tools": ["ghidra", "frida", "afl_fuzzer", "pwntools"]
+})
+agent_id = response.json()['agent_id']
+
+# 执行漏洞研究
+requests.post(f'http://localhost:7541/api/v1/agents/{agent_id}/run', json={
+    "message": "分析 app.apk，进行模糊测试",
+    "context": {"mode": "fuzzing", "target_file": "app.apk"}
+})
+
+# [*] Reverse engineering...
+# [*] Fuzzing 1000 test cases...
+# [*] Crash detected: heap overflow
+# [*] Generating exploit template...
 ```
 **用途**: 0-day 研究、Exploit 开发、漏洞分析
 
@@ -1085,14 +1135,20 @@ agent.recall("target.com")
 <tr><td width="50%">
 
 **📊 高级分析与报告**
-```bash
-$ uplifted report --format=pdf \
-  --template=executive
+```python
+import requests
 
-[*] Generating executive report...
-[*] Charts: ✓ Timeline: ✓
-[*] Risk matrix: ✓
-[*] Report: executive-2025-Q4.pdf
+# 生成高级分析报告
+requests.post('http://localhost:7541/api/v1/reports/generate', json={
+    "format": "pdf",
+    "template": "executive",
+    "agent_id": agent_id
+})
+
+# [*] Generating executive report...
+# [*] Charts: ✓ Timeline: ✓
+# [*] Risk matrix: ✓
+# [*] Report: executive-2025-Q4.pdf
 ```
 - 自动生成专业级安全报告
 - 多种报告模板（技术/管理/合规）
@@ -1208,16 +1264,22 @@ Region 3 ────┘
 <tr><td width="50%">
 
 **🔒 企业安全与合规**
-```bash
+```python
+import requests
+
 # 合规检查
-$ uplifted compliance --standard=SOC2
-[✓] Access Control
-[✓] Data Encryption
-[✓] Audit Logging
-[✓] 98% Compliant
+response = requests.post('http://localhost:7541/api/v1/compliance/check', json={
+    "standard": "SOC2"
+})
+# [✓] Access Control
+# [✓] Data Encryption
+# [✓] Audit Logging
+# [✓] 98% Compliant
 
 # 自动生成审计报告
-$ uplifted audit --year=2026
+requests.post('http://localhost:7541/api/v1/audit/generate', json={
+    "year": 2026
+})
 ```
 - SOC2/ISO27001/GDPR 合规检查
 - 自动化审计日志收集
@@ -1336,14 +1398,19 @@ User (London) ──→ Edge Node (London)
 </td><td width="50%">
 
 **💾 多云与混合部署**
-```bash
-# 多云部署
-$ uplifted deploy \
-  --aws-region=us-east-1 \
-  --gcp-region=asia-east1 \
-  --azure-region=westeurope
+```python
+import requests
 
-[✓] 3 regions deployed
+# 多云部署
+requests.post('http://localhost:7541/api/v1/deployment/multi-cloud', json={
+    "regions": {
+        "aws": "us-east-1",
+        "gcp": "asia-east1",
+        "azure": "westeurope"
+    }
+})
+
+# [✓] 3 regions deployed
 ```
 - AWS/GCP/Azure 统一部署
 - 混合云和私有云支持
