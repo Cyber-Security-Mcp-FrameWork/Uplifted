@@ -1,6 +1,7 @@
 import inspect
 import traceback
 import types
+import logging
 from itertools import chain
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
@@ -46,6 +47,9 @@ from ...model_registry import (
     has_capability
 )
 
+# 配置日志记录器
+logger = logging.getLogger(__name__)
+
 class ObjectResponse(BaseModel):
     pass
 
@@ -85,7 +89,7 @@ def tool_wrapper(func: Callable) -> Callable:
             result = func(*args, **kwargs)
             return result
         except Exception as e:
-            print("工具调用失败:", e)
+            logger.error(f"工具调用失败: {e}", exc_info=True)
             return {"status_code": 500, "detail": f"工具调用失败: {e}"}
     
     return wrapper
@@ -99,7 +103,8 @@ def summarize_text(text: str, llm_model: Any, chunk_size: int = 100000, max_size
     if not isinstance(text, str):
         try:
             text = str(text)
-        except:
+        except (TypeError, ValueError) as e:
+            logger.warning(f"无法将文本转换为字符串: {e}")
             return ""
 
     if not text:
@@ -115,7 +120,7 @@ def summarize_text(text: str, llm_model: Any, chunk_size: int = 100000, max_size
     # 尝试先从缓存获取结果
     cached_result = get_from_cache_with_expiry(cache_key)
     if cached_result is not None:
-        print("使用缓存的摘要")
+        logger.debug("使用缓存的摘要", extra={"cache_key": cache_key})
         return cached_result
 
     # 根据模型调整块大小
@@ -126,19 +131,19 @@ def summarize_text(text: str, llm_model: Any, chunk_size: int = 100000, max_size
         chunk_size = min(chunk_size, 200000)  # Claude 每块最多 200K 字符
     
     try:
-        print(f"原始文本长度: {len(text)}")
-        
+        logger.debug(f"原始文本长度: {len(text)}")
+
         # 如果文本非常长，则进行初步的激进截断（截取前 200 万字符）
         if len(text) > 2000000:
             text = text[:2000000]
-            print("文本过长，已截断至 2000000 个字符")
-        
+            logger.warning("文本过长，已截断至 2000000 个字符")
+
         chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
-        print(f"块的数量: {len(chunks)}")
-        
+        logger.debug(f"块的数量: {len(chunks)}")
+
         model = agent_creator(response_format=str, tools=[], context=None, llm_model=llm_model, system_prompt=None)
         if isinstance(model, dict) and "status_code" in model:
-            print(f"创建模型出错: {model}")
+            logger.error(f"创建模型出错: {model}")
             return text[:max_size]
         
         # 如果块数过多，则分批处理
@@ -152,28 +157,28 @@ def summarize_text(text: str, llm_model: Any, chunk_size: int = 100000, max_size
             for i, chunk in enumerate(batch):
                 chunk_num = batch_start + i + 1
                 try:
-                    print(f"正在处理块 {chunk_num}/{len(chunks)}，长度: {len(chunk)}")
-                    
+                    logger.debug(f"正在处理块 {chunk_num}/{len(chunks)}，长度: {len(chunk)}")
+
                     # 构造更聚焦的提示以获得更好的摘要效果
                     prompt = (
                         "请提供以下文本的极其简洁的摘要。"
                         "仅关注最重要的要点和关键信息。"
                         "在保留关键信息的前提下尽可能简短：\n\n"
                     )
-                    
+
                     message = [{"type": "text", "text": prompt + chunk}]
                     result = model.run_sync(message)
-                    
+
                     if result and hasattr(result, 'data') and result.data:
                         # 确保摘要不至于过长
                         summary = result.data[:max_size//len(chunks)]
                         summarized_chunks.append(summary)
                     else:
-                        print(f"警告: 块 {chunk_num} 的结果为空或无效")
+                        logger.warning(f"块 {chunk_num} 的结果为空或无效")
                         # 备用方案：使用截断后的短文本
                         summarized_chunks.append(chunk[:500] + "...")
                 except Exception as e:
-                    print(f"块 {chunk_num} 摘要出错: {str(e)}")
+                    logger.error(f"块 {chunk_num} 摘要出错: {str(e)}", exc_info=True)
                     # 出错时使用截断后的短文本作为备用摘要
                     summarized_chunks.append(chunk[:500] + "...")
         
@@ -182,90 +187,89 @@ def summarize_text(text: str, llm_model: Any, chunk_size: int = 100000, max_size
         
         # 如果合并后的摘要仍然太长，则递归使用更小的块进行摘要
         if len(combined_summary) > max_size:
-            print(f"合并后的摘要仍过长 ({len(combined_summary)} 个字符)，正在递归摘要...")
+            logger.debug(f"合并后的摘要仍过长 ({len(combined_summary)} 个字符)，正在递归摘要...")
             return summarize_text(
-                combined_summary, 
-                llm_model, 
+                combined_summary,
+                llm_model,
                 chunk_size=max(5000, chunk_size//4),  # 更激进地缩小块大小
                 max_size=max_size
             )
-            
-        print(f"最终摘要长度: {len(combined_summary)}")
-        
+
+        logger.debug(f"最终摘要长度: {len(combined_summary)}")
+
         # 将结果缓存 1 小时（3600 秒）
         save_to_cache_with_expiry(combined_summary, cache_key, 3600)
-        
+
         return combined_summary
     except Exception as e:
-        traceback.print_exc()
-        print(f"summarize_text 出错: {str(e)}")
+        logger.error(f"summarize_text 出错: {str(e)}", exc_info=True)
         # 若均失败，则返回截断后的文本
         return text[:max_size]
 
 def summarize_message_prompt(message_prompt: str, llm_model: Any) -> str:
     """对消息提示进行摘要以在保留关键信息的同时减少长度。"""
-    print("\n\n\n****************正在摘要消息提示****************\n\n\n")
+    logger.info("正在摘要消息提示")
     if message_prompt is None:
         return ""
-    
+
     try:
         # 对消息提示使用较小的最大长度
         max_size = 50000  # 消息最大 50K 字符
         summarized_message_prompt = summarize_text(message_prompt, llm_model, max_size=max_size)
         if summarized_message_prompt is None:
             return ""
-        print("摘要前消息提示长度: ", len(message_prompt))
-        print(f"摘要后消息提示长度: {len(summarized_message_prompt)}")
+        logger.debug(f"摘要前消息提示长度: {len(message_prompt)}, 摘要后长度: {len(summarized_message_prompt)}")
         return summarized_message_prompt
     except Exception as e:
-        print(f"summarize_message_prompt 出错: {str(e)}")
+        logger.error(f"summarize_message_prompt 出错: {str(e)}", exc_info=True)
         try:
             return str(message_prompt)[:50000] if message_prompt else ""
-        except:
+        except (TypeError, AttributeError) as e:
+            logger.error(f"回退字符串转换失败: {e}")
             return ""
 
 def summarize_system_prompt(system_prompt: str, llm_model: Any) -> str:
     """对系统提示进行摘要以在保留关键信息的同时减少长度。"""
-    print("\n\n\n****************正在摘要系统提示****************\n\n\n")
+    logger.info("正在摘要系统提示")
     if system_prompt is None:
         return ""
-    
+
     try:
         # 对系统提示使用较小的最大长度
         max_size = 50000  # 系统提示最大 50K 字符
         summarized_system_prompt = summarize_text(system_prompt, llm_model, max_size=max_size)
         if summarized_system_prompt is None:
             return ""
-        print("系统提示摘要前长度: ", len(system_prompt))
-        print(f"系统提示摘要后长度: {len(summarized_system_prompt)}")
+        logger.debug(f"系统提示摘要前长度: {len(system_prompt)}, 摘要后长度: {len(summarized_system_prompt)}")
         return summarized_system_prompt
     except Exception as e:
-        print(f"summarize_system_prompt 出错: {str(e)}")
+        logger.error(f"summarize_system_prompt 出错: {str(e)}", exc_info=True)
         try:
             return str(system_prompt)[:50000] if system_prompt else ""
-        except:
+        except (TypeError, AttributeError) as e:
+            logger.error(f"回退字符串转换失败: {e}")
             return ""
 
 def summarize_context_string(context_string: str, llm_model: Any) -> str:
     """对上下文字符串进行摘要以在保留关键信息的同时减少长度。"""
-    print("\n\n\n****************正在摘要上下文字符串****************\n\n\n")
+    logger.info("正在摘要上下文字符串")
     if context_string is None or context_string == "":
         return ""
-    
+
     try:
         # 对上下文字符串使用较小的最大长度
         max_size = 50000  # 上下文最大 50K 字符
         summarized_context = summarize_text(context_string, llm_model, max_size=max_size)
         if summarized_context is None:
             return ""
-        print("上下文字符串摘要前长度: ", len(context_string))
-        print(f"上下文字符串摘要后长度: {len(summarized_context)}")
+        logger.debug(f"上下文字符串摘要前长度: {len(context_string)}, 摘要后长度: {len(summarized_context)}")
         return summarized_context
     except Exception as e:
-        print(f"summarize_context_string 出错: {str(e)}")
+        logger.error(f"summarize_context_string 出错: {str(e)}", exc_info=True)
         try:
             return str(context_string)[:50000] if context_string else ""
-        except:
+        except (TypeError, AttributeError) as e:
+            logger.error(f"回退字符串转换失败: {e}")
             return ""
 
 def process_error_traceback(e):
@@ -293,9 +297,9 @@ def prepare_message_history(prompt, images=None, llm_model=None, tools=None):
             from .cu import ComputerUse_screenshot_tool_bytes
             result_of_screenshot = ComputerUse_screenshot_tool_bytes()
             message_history.append(BinaryContent(data=result_of_screenshot, media_type='image/png'))
-            print(f"为具备 computer_use 能力的模型 {llm_model} 添加了截图")
+            logger.debug(f"为具备 computer_use 能力的模型 {llm_model} 添加了截图")
         except Exception as e:
-            print(f"为 {llm_model} 添加截图时出错: {e}")
+            logger.error(f"为 {llm_model} 添加截图时出错: {e}", exc_info=True)
             
     return message_history
 
@@ -357,12 +361,12 @@ async def handle_compression_retry(prompt, images, tools, llm_model, response_fo
         )
         
         # 使用压缩后的输入运行代理
-        print("正在发送压缩提示的请求")
+        logger.debug("正在发送压缩提示的请求")
         if agent_memory:
             result = await roulette_agent.run(message_history, message_history=agent_memory)
         else:
             result = await roulette_agent.run(message_history)
-        print("已收到压缩提示的响应")
+        logger.debug("已收到压缩提示的响应")
         
         return result
     except Exception as e:
@@ -513,7 +517,8 @@ def _process_context(context):
         the_class_string = None
         try:
             the_class_string = each.__bases__[0].__name__
-        except:
+        except (AttributeError, IndexError, TypeError):
+            # 对象可能没有 __bases__ 属性，或为空，或不是类
             pass
         
         if type_string == 'Characterization':
@@ -525,10 +530,11 @@ def _process_context(context):
             description = each.description
             try:
                 response = each.response.dict()
-            except:
+            except AttributeError:
                 try:
                     response = each.response.model_dump()
-                except:
+                except AttributeError:
+                    # 如果两种方法都不可用，直接使用原始对象
                     response = each.response
                     
             context_string += f"\n\n来自问答的上下文: ```question_answering question: {description} answer: {response}```   "
@@ -570,7 +576,7 @@ def _setup_tools(roulette_agent, tools, llm_model):
             for each in ComputerUse_tools:
                 roulette_agent.tool_plain(each, retries=5)
         except Exception as e:
-            print(f"设置 ComputerUse 工具时出错: {e}")
+            logger.error(f"设置 ComputerUse 工具时出错: {e}", exc_info=True)
 
     # 设置 BrowserUse 工具
     if "BrowserUse.*" in tools:
@@ -582,7 +588,7 @@ def _setup_tools(roulette_agent, tools, llm_model):
             for each in BrowserUse_tools:
                 roulette_agent.tool_plain(each, retries=5)
         except Exception as e:
-            print(f"设置 BrowserUse 工具时出错: {e}")
+            logger.error(f"设置 BrowserUse 工具时出错: {e}", exc_info=True)
             
     return roulette_agent
 
@@ -626,7 +632,7 @@ def agent_creator(
         # 若未指定模型，则使用默认模型
         if llm_model is None:
             llm_model = "openai/gpt-4o"
-            print(f"未指定模型，使用默认模型: {llm_model}")
+            logger.info(f"未指定模型，使用默认模型: {llm_model}")
         
         # 从注册表中获取模型
         model, error = _create_model_from_registry(llm_model)

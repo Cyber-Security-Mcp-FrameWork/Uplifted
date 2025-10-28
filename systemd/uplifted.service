@@ -1,0 +1,58 @@
+# Uplifted systemd Service Unit
+# Installation:
+#   sudo cp systemd/uplifted.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable uplifted
+#   sudo systemctl start uplifted
+
+[Unit]
+Description=Uplifted AI Agent System
+Documentation=https://uplifted.ai/docs
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=uplifted
+Group=uplifted
+WorkingDirectory=/opt/uplifted
+
+# Environment
+Environment="PATH=/opt/uplifted/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="UPLIFTED_ENV=production"
+EnvironmentFile=-/etc/uplifted/environment
+
+# Execution
+ExecStartPre=/bin/sleep 5
+ExecStart=/opt/uplifted/venv/bin/python -m server.run_main_server
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/bin/kill -TERM $MAINPID
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+StartLimitBurst=5
+StartLimitInterval=300s
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/uplifted/data /opt/uplifted/logs
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=uplifted
+
+[Install]
+WantedBy=multi-user.target

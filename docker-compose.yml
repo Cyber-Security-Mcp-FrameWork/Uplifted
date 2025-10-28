@@ -1,0 +1,185 @@
+# Uplifted Docker Compose Configuration
+# Production-ready service orchestration
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Uplifted Main Service
+  # ============================================================================
+  uplifted:
+    image: uplifted:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PYTHON_VERSION=3.11
+    container_name: uplifted-server
+    restart: unless-stopped
+
+    # Ports
+    ports:
+      - "7541:7541"  # Main API
+      - "8086:8086"  # Tools Server
+
+    # Environment variables
+    environment:
+      # Server configuration
+      - UPLIFTED_ENV=production
+      - UPLIFTED__SERVER__HOST=0.0.0.0
+      - UPLIFTED__SERVER__PORT=7541
+      - UPLIFTED__SERVER__WORKERS=4
+      - UPLIFTED__SERVER__LOG_LEVEL=INFO
+
+      # Tools server
+      - UPLIFTED__TOOLS_SERVER__PORT=8086
+      - UPLIFTED__TOOLS_SERVER__MCP_ENABLED=true
+
+      # Database
+      - UPLIFTED__DATABASE__PATH=/data/uplifted.db
+
+      # Plugins
+      - UPLIFTED__PLUGINS__ENABLED=true
+      - UPLIFTED__PLUGINS__AUTO_LOAD=true
+      - UPLIFTED__PLUGINS__AUTO_ACTIVATE=true
+
+      # Logging
+      - UPLIFTED__LOGGING__LEVEL=INFO
+      - UPLIFTED__LOGGING__FILE=/logs/uplifted.log
+
+      # Security (set these in production!)
+      # - UPLIFTED__SECURITY__API_KEY_REQUIRED=true
+      # - UPLIFTED__SECURITY__API_KEY=${UPLIFTED_API_KEY}
+
+      # API Keys (from .env file)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+
+    # Volumes
+    volumes:
+      - uplifted-data:/data           # Persistent data
+      - uplifted-logs:/logs           # Log files
+      - uplifted-config:/config       # Configuration files
+      - uplifted-plugins:/plugins     # Plugin directory
+      - ./config:/config/host:ro      # Mount host config (optional)
+
+    # Networks
+    networks:
+      - uplifted-network
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Optional: Redis (for caching and message queue)
+  # ============================================================================
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: uplifted-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - uplifted-network
+  #   command: redis-server --appendonly yes
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+
+  # ============================================================================
+  # Optional: PostgreSQL (for production database)
+  # ============================================================================
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: uplifted-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_DB=uplifted
+  #     - POSTGRES_USER=uplifted
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   networks:
+  #     - uplifted-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U uplifted"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # ============================================================================
+  # Optional: Nginx (reverse proxy and load balancer)
+  # ============================================================================
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: uplifted-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+  #   networks:
+  #     - uplifted-network
+  #   depends_on:
+  #     - uplifted
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  uplifted-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  uplifted-data:
+    driver: local
+  uplifted-logs:
+    driver: local
+  uplifted-config:
+    driver: local
+  uplifted-plugins:
+    driver: local
+  # redis-data:
+  #   driver: local
+  # postgres-data:
+  #   driver: local

@@ -1,0 +1,112 @@
+# Uplifted .dockerignore
+# Optimize Docker build by excluding unnecessary files
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+.tox/
+htmlcov/
+.mypy_cache/
+.hypothesis/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation (already copied)
+*.md
+!README.md
+
+# Logs and temp files
+*.log
+logs/
+tmp/
+temp/
+
+# Data and config (use volumes)
+data/
+config/*.yaml
+config/*.json
+!config/*.example.*
+*.db
+*.sqlite
+
+# Deployment scripts (not needed in image)
+deploy/
+scripts/deploy*.sh
+install.sh
+install.ps1
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Development
+.trae/
+*.dev
+
+# Credentials and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+secrets/
+
+# Large files
+*.mp4
+*.avi
+*.mov
+*.zip
+*.tar.gz

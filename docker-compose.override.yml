@@ -1,0 +1,45 @@
+# Docker Compose Override for Development
+# This file is automatically loaded in development to override production settings
+# Usage: docker-compose up (automatically applies overrides)
+
+version: '3.8'
+
+services:
+  uplifted:
+    # Development-specific settings
+    build:
+      context: .
+      target: runtime
+      args:
+        - PYTHON_VERSION=3.11
+
+    # Enable hot reload by mounting source code
+    volumes:
+      - ./server:/app/server:ro
+      - ./examples:/app/examples:ro
+      - uplifted-data:/data
+      - uplifted-logs:/logs
+      - uplifted-config:/config
+      - uplifted-plugins:/plugins
+
+    # Development environment variables
+    environment:
+      - UPLIFTED_ENV=development
+      - UPLIFTED__SERVER__LOG_LEVEL=DEBUG
+      - UPLIFTED__SERVER__RELOAD=true
+      - UPLIFTED__LOGGING__LEVEL=DEBUG
+
+    # Development ports (avoid conflicts)
+    ports:
+      - "7541:7541"
+      - "8086:8086"
+
+    # Remove resource limits in development
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+
+    # Command override for development (with reload)
+    # command: ["python", "-m", "uvicorn", "server.api:app", "--host", "0.0.0.0", "--port", "7541", "--reload"]

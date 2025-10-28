@@ -1,6 +1,6 @@
 [project]
 name = "uplifted"
-version = "0.53.1"
+version = "1.0.0"
 description = "Uplifted 是一个 AI 代理系统，允许开发者通过本地或远程服务调用大型语言模型（LLM），支持多种任务"
 readme = "README.md"
 authors = [

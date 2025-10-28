@@ -1,0 +1,126 @@
+{
+  "id": "com.uplifted.examples.hello_world",
+  "name": "Hello World Plugin",
+  "version": "1.0.0",
+  "description": "A simple example plugin demonstrating the plugin system",
+  "author": "Uplifted Team",
+  "license": "MIT",
+
+  "category": "utility",
+  "tags": ["example", "tutorial", "hello-world"],
+
+  "dependencies": [],
+  "python_requirements": [],
+  "system_requirements": [],
+  "min_api_version": "0.1.0",
+  "max_api_version": "2.0.0",
+
+  "entry_point": "hello_world.HelloWorldPlugin",
+
+  "tools": [
+    {
+      "name": "greet",
+      "display_name": "Greet User",
+      "description": "Say hello to a user",
+      "entry_point": "hello_world.tools.greet",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the person to greet"
+          },
+          "language": {
+            "type": "string",
+            "description": "Language for greeting (en, es, fr, zh)",
+            "default": "en"
+          }
+        },
+        "required": ["name"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "greeting": {
+            "type": "string",
+            "description": "The greeting message"
+          },
+          "language": {
+            "type": "string",
+            "description": "Language used"
+          }
+        }
+      },
+      "examples": [
+        {
+          "input": {"name": "Alice"},
+          "output": {"greeting": "Hello, Alice!", "language": "en"}
+        },
+        {
+          "input": {"name": "Bob", "language": "es"},
+          "output": {"greeting": "¡Hola, Bob!", "language": "es"}
+        }
+      ],
+      "tags": ["greeting", "example"],
+      "version": "1.0.0"
+    },
+    {
+      "name": "echo",
+      "display_name": "Echo Message",
+      "description": "Echo back the input message",
+      "entry_point": "hello_world.tools.echo",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Message to echo"
+          }
+        },
+        "required": ["message"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "echo": {
+            "type": "string"
+          }
+        }
+      },
+      "tags": ["utility"]
+    }
+  ],
+
+  "permissions": [],
+
+  "resources": {
+    "memory_mb": 64,
+    "cpu_cores": 0.1,
+    "disk_mb": 10,
+    "network_required": false,
+    "gpu_required": false,
+    "timeout_seconds": 30
+  },
+
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "default_language": {
+        "type": "string",
+        "description": "Default language for greetings",
+        "enum": ["en", "es", "fr", "zh"],
+        "default": "en"
+      }
+    }
+  },
+
+  "default_config": {
+    "default_language": "en"
+  },
+
+  "hooks": {},
+
+  "homepage": "https://uplifted.ai/plugins/hello-world",
+  "repository_url": "https://github.com/uplifted/plugin-hello-world",
+  "documentation_url": "https://uplifted.ai/docs/plugins/hello-world"
+}

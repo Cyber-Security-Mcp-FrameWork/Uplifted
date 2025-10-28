@@ -3,9 +3,13 @@ from decimal import Decimal
 from pydantic_ai.models.openai import OpenAIModelSettings
 from pydantic_ai.models.anthropic import AnthropicModelSettings
 from functools import lru_cache
+import logging
 
 
 from typing import Literal
+
+# 配置日志记录器
+logger = logging.getLogger(__name__)
 
 # 定义所有可用的模型名称
 ModelNames = Literal[
@@ -242,8 +246,8 @@ def get_model_registry_entry(llm_model: str):
     for model_id, details in MODEL_REGISTRY.items():
         if model_id.lower() == llm_model_lower:
             return details
-    
-    print(f"警告: 未在注册表中找到模型 '{llm_model}'")
+
+    logger.warning(f"未在注册表中找到模型 '{llm_model}'")
     return None
 
 # 获取某一特定提供者的所有模型
@@ -285,9 +289,9 @@ def get_model_settings(llm_model: str, tools=None):
     provider = model_info["provider"]
     if provider in MODEL_SETTINGS:
         return MODEL_SETTINGS[provider]
-    
+
     # 当没有找到匹配的设置时记录日志
-    print(f"警告: 没有为{llm_model}找到模型设置")
+    logger.warning(f"没有为{llm_model}找到模型设置")
     return None
 
 # 获取模型定价信息

@@ -7,7 +7,11 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Optional
 import time
+import logging
 from importlib.resources import files
+
+# 配置日志记录器
+logger = logging.getLogger(__name__)
 
 class MCPRag:
     @staticmethod
@@ -78,10 +82,10 @@ class MCPRag:
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
             content = BeautifulSoup(response.text, "html.parser").get_text()
-            print(f"Fetched {url} in {time.time() - start_time:.2f}s")
+            logger.debug(f"Fetched {url} in {time.time() - start_time:.2f}s")
             return content[:10000]  # limitting content to 10k
         except requests.RequestException as e:
-            print(f"Error fetching {url}: {type(e).__name__} - {str(e)}")
+            logger.warning(f"Error fetching {url}: {type(e).__name__} - {str(e)}")
             return None
 
     def _fetch_all_content(self, results: List[Dict]) -> List[str]:
@@ -103,6 +107,6 @@ class MCPRag:
                             "text": content
                         })
                 except Exception as e:
-                    print(f"Request failed with exception: {e}")
+                    logger.error(f"Request failed with exception: {e}", exc_info=True)
             
         return content_list

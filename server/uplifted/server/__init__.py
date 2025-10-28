@@ -13,8 +13,12 @@ import threading
 import time
 import concurrent.futures
 import traceback
+import logging
 from multiprocessing import freeze_support
 from ..tools_server import run_tools_server, stop_tools_server, is_tools_server_running
+
+# 配置日志记录器
+logger = logging.getLogger(__name__)
 
 # 忽略常见的警告信息，提高控制台整洁度
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -91,8 +95,7 @@ def _start_server(server_func, server_name, redirect_output=True):
         server_func(redirect_output=redirect_output)
         return True
     except Exception:
-        print(f"启动 {server_name} 服务器时出错：")
-        traceback.print_exc()
+        logger.error(f"启动 {server_name} 服务器时出错", exc_info=True)
         return False
 
 
@@ -126,18 +129,17 @@ def run_dev_server(redirect_output=True):
                 main_ok = main_future.result(timeout=150)
                 tools_ok = tools_future.result(timeout=150)
                 if not (main_ok and tools_ok):
-                    print("至少一个服务器启动失败，正在停止所有服务...")
+                    logger.error("至少一个服务器启动失败，正在停止所有服务...")
                     stop_dev_server()
                     raise RuntimeError("服务器启动失败，请检查日志。")
                 # 服务启动成功后，稍作延时以确保完全可用
                 time.sleep(0.5)
             except concurrent.futures.TimeoutError:
-                print("启动服务器超时，正在停止所有服务...")
+                logger.error("启动服务器超时，正在停止所有服务...")
                 stop_dev_server()
                 raise RuntimeError("启动服务器超时。")
     except Exception:
-        print("开发模式运行时发生意外错误：")
-        traceback.print_exc()
+        logger.error("开发模式运行时发生意外错误", exc_info=True)
         raise
 
 

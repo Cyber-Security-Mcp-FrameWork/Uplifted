@@ -19,7 +19,19 @@ import os
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(
+    title="Uplifted API",
+    description="Uplifted 主服务 API，包含插件管理和工具查询功能",
+    version="1.0.0"
+)
+
+# 配置 OpenAPI 文档
+from .openapi_config import configure_openapi
+configure_openapi(app)
+
+# 注册插件和工具管理 API 路由
+from .plugins_api import router as plugins_router
+app.include_router(plugins_router)
 
 # Remove the middleware and use exception handlers instead
 # 作用：拦截所有未被单个路由捕获的异常，统一记录日志并返回 HTTP 500。
