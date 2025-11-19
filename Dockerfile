@@ -20,8 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for faster dependency installation
 RUN pip install --no-cache-dir uv
 
-# Copy dependency files
+# Copy dependency files and source code
 COPY pyproject.toml ./
+COPY server/ ./server/
+COPY README.md ./
 
 # Create virtual environment and install dependencies
 RUN uv venv /opt/venv && \
