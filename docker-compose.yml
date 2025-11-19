@@ -12,8 +12,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - PYTHON_VERSION=3.11
     container_name: uplifted-server
     restart: unless-stopped
 
@@ -65,7 +63,7 @@ services:
       - uplifted-logs:/logs           # Log files
       - uplifted-config:/config       # Configuration files
       - uplifted-plugins:/plugins     # Plugin directory
-      - ./config:/config/host:ro      # Mount host config (optional)
+      # - ./config:/config/host:ro    # Uncomment to mount host config (optional)
 
     # Networks
     networks:
