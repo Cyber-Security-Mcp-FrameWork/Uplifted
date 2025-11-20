@@ -3,7 +3,7 @@ from multiprocessing import freeze_support
 
 _server_manager = ServerManager(
     app_path="uplifted.tools_server.server.api:app",
-    host="localhost",
+    host="0.0.0.0",  # 允许外部访问
     port=8086,
     name="tools"
 )

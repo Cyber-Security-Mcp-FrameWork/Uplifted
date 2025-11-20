@@ -28,7 +28,7 @@ warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
 # 创建 ServerManager，用于管理主服务的启动、停止及状态检查
 _server_manager = ServerManager(
     app_path="uplifted.server.api:app",  # FastAPI 应用路径
-    host="localhost",                 # 绑定主机地址
+    host="0.0.0.0",                   # 绑定主机地址 (0.0.0.0 允许外部访问)
     port=7541,                          # 监听端口
     name="main"                       # 服务名称
 )
