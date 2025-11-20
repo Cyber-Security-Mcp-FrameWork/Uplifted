@@ -37,7 +37,10 @@ dependencies = [
     "mediapipe",
     "duckduckgo_search",
     "watchdog>=3.0.0",
-    "pyyaml>=6.0.0"
+    "pyyaml>=6.0.0",
+    "flask>=3.0.0",
+    "aiohttp>=3.9.0",
+    "pyjwt>=2.8.0"
 ]
 
 [project.optional-dependencies]
