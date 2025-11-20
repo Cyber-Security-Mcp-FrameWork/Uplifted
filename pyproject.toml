@@ -35,7 +35,9 @@ dependencies = [
     "pydantic-ai-slim[anthropic,bedrock,openai]>=0.0.45",
     "pydantic==2.10.5",
     "mediapipe",
-    "duckduckgo_search"
+    "duckduckgo_search",
+    "watchdog>=3.0.0",
+    "pyyaml>=6.0.0"
 ]
 
 [project.optional-dependencies]
