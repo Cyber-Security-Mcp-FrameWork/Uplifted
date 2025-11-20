@@ -87,6 +87,9 @@ COPY --chown=uplifted:uplifted docs/ /app/docs/
 COPY --chown=uplifted:uplifted pyproject.toml /app/
 COPY --chown=uplifted:uplifted README.md /app/
 
+# Fix: Reinstall uplifted package in runtime stage to fix paths
+RUN /opt/venv/bin/pip install -e /app --no-deps
+
 # Copy Docker utilities
 COPY --chown=uplifted:uplifted docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=uplifted:uplifted docker/healthcheck.sh /usr/local/bin/healthcheck.sh
