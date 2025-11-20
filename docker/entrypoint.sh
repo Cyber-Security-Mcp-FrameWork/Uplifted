@@ -64,6 +64,9 @@ generate_config() {
     if [ ! -f "${config_file}" ]; then
         log_info "Generating default configuration..."
 
+        # Set PYTHONPATH to ensure uplifted module can be imported
+        export PYTHONPATH="/app/server:${PYTHONPATH}"
+
         # Use Python to generate config
         python3 -c "
 from uplifted.extensions import generate_config_template
@@ -135,8 +138,8 @@ start_server() {
     log_info "API Documentation: http://0.0.0.0:7541/docs"
     echo ""
 
-    # Set Python path
-    export PYTHONPATH="/app:${PYTHONPATH}"
+    # Set Python path to include server directory
+    export PYTHONPATH="/app/server:${PYTHONPATH}"
 
     # Run the server
     cd /app
