@@ -16,6 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from integration import BaseIntegration
 
+# 配置日志以显示警告信息
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(levelname)s: %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -57,14 +62,27 @@ class HexStrikeIntegration(BaseIntegration):
         """检查服务状态"""
         status = {}
 
-        # 检查 Uplifted
-        status['Uplifted'] = self.check_uplifted_status()
-
-        # 检查 HexStrike Server
+        # 检查 Uplifted（增加超时时间和调试信息）
         try:
-            response = requests.get(f"{self.hexstrike_server_url}/health", timeout=2)
+            # 直接使用 requests 测试，超时时间增加到 10 秒
+            response = requests.get(f"{self.uplifted_url}/status", timeout=10)
+            status['Uplifted'] = response.status_code == 200
+        except requests.exceptions.Timeout:
+            logger.warning(f"Uplifted 连接超时: {self.uplifted_url}")
+            status['Uplifted'] = False
+        except requests.exceptions.ConnectionError as e:
+            logger.warning(f"Uplifted 连接错误: {self.uplifted_url} - {e}")
+            status['Uplifted'] = False
+        except Exception as e:
+            logger.warning(f"Uplifted 状态检查失败: {e}")
+            status['Uplifted'] = False
+
+        # 检查 HexStrike Server（同样增加超时）
+        try:
+            response = requests.get(f"{self.hexstrike_server_url}/health", timeout=10)
             status['HexStrike Server'] = response.status_code == 200
-        except Exception:
+        except Exception as e:
+            logger.warning(f"HexStrike Server 检查失败: {e}")
             status['HexStrike Server'] = False
 
         return status

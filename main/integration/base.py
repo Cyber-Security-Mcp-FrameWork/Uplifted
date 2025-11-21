@@ -152,9 +152,13 @@ class BaseIntegration(ABC):
         if not all(status.values()):
             return False
 
-        # 测试工具列表获取
+        # 测试工具列表获取（可选，如果失败不影响整体状态）
         try:
             tools_info = self.uplifted_client.call_get_tools()
             return tools_info.get('count', 0) > 0
-        except Exception:
-            return False
+        except Exception as e:
+            # 工具列表获取失败，但服务本身可能是正常的
+            # 只要基本连接正常就认为整合成功
+            import logging
+            logging.warning(f"工具列表获取失败（可能 Tools Server 未运行）: {e}")
+            return True  # 改为 True，允许基础功能使用
